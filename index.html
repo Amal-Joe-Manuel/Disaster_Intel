@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DISASTER INTEL — Mission Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #030A0F; --bg2: #060F17; --bg3: #0A1620; --panel: #0D1E2D;
+      --border: #0F3A52; --border2: #1A5070;
+      --accent: #00D4FF; --accent2: #00FF9F;
+      --red: #FF2244; --orange: #FF6600; --yellow: #FFD700; --green: #00FF88;
+      --text: #C8E8F8; --text2: #5A8FAA;
+      --mono: 'Share Tech Mono', monospace;
+      --head: 'Orbitron', monospace;
+      --body: 'Rajdhani', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--body);
+      height: 100vh; overflow: hidden;
+      background-image:
+        radial-gradient(ellipse at 20% 50%, rgba(0,80,120,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(0,180,255,0.05) 0%, transparent 50%);
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.07) 2px, rgba(0,0,0,0.07) 4px);
+    }
+
+    /* ── Header ── */
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 20px; border-bottom: 1px solid var(--border);
+      background: var(--bg2); position: relative; z-index: 10;
+    }
+    #header::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+    .logo { font-family: var(--head); font-size: 1.1rem; font-weight: 900; letter-spacing: 0.15em; color: var(--accent); text-shadow: 0 0 20px rgba(0,212,255,0.5); }
+    .logo span { color: var(--red); }
+    .status-bar { display: flex; gap: 20px; align-items: center; font-family: var(--mono); font-size: 0.7rem; color: var(--text2); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; display: inline-block; margin-right: 5px; }
+    .status-dot.red { background: var(--red); box-shadow: 0 0 8px var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* ── Layout ── */
+    #app { display: grid; grid-template-columns: 1fr 320px; height: calc(100vh - 47px); }
+
+    /* ── Left panel ── */
+    #video-panel { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+    .panel-header {
+      padding: 8px 16px; font-family: var(--mono); font-size: 0.65rem; color: var(--text2);
+      letter-spacing: 0.1em; border-bottom: 1px solid var(--border); background: var(--bg2);
+      display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; flex-shrink: 0;
+    }
+    .panel-header .accent { color: var(--accent); }
+
+    #video-container {
+      flex: 1; position: relative; background: #000;
+      display: flex; align-items: center; justify-content: center; overflow: hidden; min-height: 0;
+    }
+    #video-feed { max-width: 100%; max-height: 100%; display: block; }
+    #no-feed { text-align: center; color: var(--text2); font-family: var(--mono); font-size: 0.75rem; }
+    #no-feed .big { font-size: 2rem; margin-bottom: 10px; }
+    .corner { position: absolute; width: 20px; height: 20px; border-color: var(--accent); border-style: solid; opacity: 0.6; }
+    .corner.tl { top:8px;left:8px;border-width:2px 0 0 2px }
+    .corner.tr { top:8px;right:8px;border-width:2px 2px 0 0 }
+    .corner.bl { bottom:8px;left:8px;border-width:0 0 2px 2px }
+    .corner.br { bottom:8px;right:8px;border-width:0 2px 2px 0 }
+
+    /* ── SITREP bar ── */
+    #sitrep-bar {
+      padding: 7px 16px; background: var(--bg3); border-top: 1px solid var(--border);
+      font-family: var(--mono); font-size: 0.62rem; color: var(--accent2);
+      letter-spacing: 0.04em; line-height: 1.4; flex-shrink: 0;
+      border-left: 3px solid var(--accent2); min-height: 36px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    #sitrep-bar .sitrep-label { color: var(--text2); white-space: nowrap; }
+    #sitrep-text { flex: 1; }
+
+    /* ── Timeline chart ── */
+    #timeline-wrap {
+      padding: 6px 16px 8px; background: var(--bg2); border-top: 1px solid var(--border);
+      flex-shrink: 0; height: 72px;
+    }
+    #timeline-wrap .tl-label { font-family: var(--mono); font-size: 0.58rem; color: var(--text2); margin-bottom: 3px; letter-spacing: 0.08em; }
+    #timeline-canvas { width: 100%; height: 46px; display: block; }
+
+    /* ── Controls ── */
+    #controls {
+      padding: 8px 16px; background: var(--bg2); border-top: 1px solid var(--border);
+      display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap;
+    }
+    #controls input {
+      flex: 1; min-width: 120px; background: var(--bg3); border: 1px solid var(--border2);
+      color: var(--text); padding: 5px 8px; font-family: var(--mono); font-size: 0.68rem; outline: none;
+    }
+    #controls input:focus { border-color: var(--accent); }
+    .btn {
+      background: transparent; border: 1px solid var(--accent); color: var(--accent);
+      padding: 5px 12px; font-family: var(--mono); font-size: 0.68rem; cursor: pointer;
+      letter-spacing: 0.08em; transition: all 0.2s; text-transform: uppercase; white-space: nowrap;
+    }
+    .btn:hover { background: rgba(0,212,255,0.1); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn.red { border-color: var(--red); color: var(--red); }
+    .btn.red:hover { background: rgba(255,34,68,0.1); }
+    .btn.green { border-color: var(--green); color: var(--green); }
+    .btn.green:hover { background: rgba(0,255,136,0.1); }
+    .btn.purple { border-color: #CC88FF; color: #CC88FF; }
+    .btn.purple:hover { background: rgba(204,136,255,0.1); }
+    #file-input { display: none; }
+    .btn.upload { border-color: var(--accent2); color: var(--accent2); }
+    .btn.upload:hover { background: rgba(0,255,159,0.1); }
+
+    /* Multi-source row */
+    #multi-controls {
+      padding: 6px 16px; background: var(--bg3); border-top: 1px solid var(--border);
+      display: none; gap: 8px; align-items: center; flex-shrink: 0;
+    }
+    #multi-controls.visible { display: flex; }
+    #multi-controls input {
+      flex: 1; background: var(--bg2); border: 1px solid var(--border2); color: var(--text);
+      padding: 5px 8px; font-family: var(--mono); font-size: 0.65rem; outline: none;
+    }
+    #multi-controls input:focus { border-color: #CC88FF; }
+    #multi-controls .mlabel { font-family: var(--mono); font-size: 0.6rem; color: var(--text2); white-space: nowrap; }
+
+    /* ── Right panel ── */
+    #right-panel { display: flex; flex-direction: column; overflow: hidden; background: var(--bg2); }
+
+    /* Stats */
+    #stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .stat-cell { background: var(--panel); padding: 10px 12px; text-align: center; }
+    .stat-value { font-family: var(--head); font-size: 1.4rem; font-weight: 700; line-height: 1; }
+    .stat-label { font-family: var(--mono); font-size: 0.58rem; color: var(--text2); margin-top: 3px; letter-spacing: 0.08em; }
+    .stat-cell.critical .stat-value { color: var(--red); text-shadow: 0 0 10px rgba(255,34,68,0.4); }
+    .stat-cell.severe .stat-value { color: var(--orange); }
+    .stat-cell.moderate .stat-value { color: var(--yellow); }
+    .stat-cell.safe .stat-value { color: var(--green); }
+
+    /* Category strip */
+    #category-strip { display: flex; gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); font-family: var(--mono); flex-shrink: 0; }
+    .cat-cell { flex: 1; background: var(--panel); padding: 6px 4px; text-align: center; }
+    .cat-val { font-size: 1rem; font-family: var(--head); font-weight: 700; }
+    .cat-lbl { font-size: 0.52rem; color: var(--text2); margin-top: 2px; }
+
+    /* Zones */
+    #zones-panel { flex: 1; overflow-y: auto; padding: 0; min-height: 0; }
+    #zones-panel::-webkit-scrollbar { width: 4px; }
+    #zones-panel::-webkit-scrollbar-thumb { background: var(--border2); }
+    .zone-card { padding: 9px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from{opacity:0;transform:translateX(8px)} to{opacity:1;transform:translateX(0)} }
+    .zone-badge { font-family: var(--head); font-size: 0.85rem; font-weight: 700; min-width: 34px; text-align: center; padding: 4px 5px; border: 1px solid currentColor; }
+    .zone-info { flex: 1; min-width: 0; }
+    .zone-name { font-size: 0.73rem; font-weight: 600; letter-spacing: 0.05em; }
+    .zone-action { font-family: var(--mono); font-size: 0.58rem; color: var(--text2); margin-top: 2px; }
+    .score-bar { height: 3px; background: var(--bg3); margin-top: 4px; border-radius: 2px; overflow: hidden; }
+    .score-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+    .zone-score { font-family: var(--head); font-size: 1rem; font-weight: 700; min-width: 38px; text-align: right; }
+    .no-data { padding: 24px 16px; text-align: center; color: var(--text2); font-family: var(--mono); font-size: 0.7rem; }
+
+    /* Detection log */
+    #detection-log { border-top: 1px solid var(--border); height: 110px; overflow-y: auto; padding: 4px 0; flex-shrink: 0; }
+    #detection-log::-webkit-scrollbar { width: 3px; }
+    #detection-log::-webkit-scrollbar-thumb { background: var(--border2); }
+    .log-entry { padding: 2px 14px; font-family: var(--mono); font-size: 0.58rem; color: var(--text2); display: flex; gap: 8px; }
+    .log-entry .log-type { color: var(--accent); min-width: 80px; }
+    .log-entry.critical .log-type { color: var(--red); }
+    .log-entry.severe .log-type { color: var(--orange); }
+    .log-time { opacity: 0.5; min-width: 55px; }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo">DISASTER<span>INTEL</span> <span style="color:var(--text2);font-size:0.6rem;font-family:var(--mono)">v2.0</span></div>
+  <div class="status-bar">
+    <span id="conn-status"><span class="status-dot red" id="dot"></span> OFFLINE</span>
+    <span id="clock">--:--:--</span>
+    <span>FRAME <span id="frame-count" style="color:var(--accent)">0</span></span>
+    <span id="fps-counter">-- FPS</span>
+  </div>
+</div>
+
+<div id="app">
+
+  <!-- LEFT -->
+  <div id="video-panel">
+    <div class="panel-header">
+      <span>◈ LIVE FEED — <span class="accent" id="source-label">NO SOURCE</span></span>
+      <span id="multi-badge" style="display:none;color:#CC88FF;font-size:0.6rem">◈ MULTI-SOURCE ACTIVE</span>
+    </div>
+
+    <div id="video-container">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div id="no-feed">
+        <div class="big">⚠</div>
+        <div>AWAITING VIDEO SOURCE</div>
+        <div style="margin-top:6px;opacity:0.5">Upload a video, start demo, or use multi-source</div>
+      </div>
+      <img id="video-feed" style="display:none" alt="Live Feed" />
+    </div>
+
+    <!-- SITREP Bar (Upgrade 3) -->
+    <div id="sitrep-bar">
+      <span class="sitrep-label">◈ SITREP</span>
+      <span id="sitrep-text">Awaiting feed...</span>
+    </div>
+
+    <!-- Timeline Chart (Upgrade 4) -->
+    <div id="timeline-wrap">
+      <div class="tl-label">◈ SEVERITY TIMELINE — MAX IMPACT SCORE OVER TIME</div>
+      <canvas id="timeline-canvas"></canvas>
+    </div>
+
+    <!-- Controls -->
+    <div id="controls">
+      <input type="file" id="file-input" accept="video/*" />
+      <label for="file-input" class="btn upload">⬆ UPLOAD</label>
+      <input type="text" id="rtsp-input" placeholder="filename.mp4 or rtsp://..." />
+      <button class="btn green" id="btn-demo">▶ DEMO</button>
+      <button class="btn" id="btn-start">▶ START</button>
+      <button class="btn purple" id="btn-multi-toggle">⊕ MULTI</button>
+      <button class="btn red" id="btn-stop" disabled>■ STOP</button>
+    </div>
+
+    <!-- Multi-source row (Upgrade 1) -->
+    <div id="multi-controls">
+      <span class="mlabel">SRC 1:</span>
+      <input type="text" id="src1-input" placeholder="source1.mp4" />
+      <span class="mlabel">SRC 2:</span>
+      <input type="text" id="src2-input" placeholder="source2.mp4" />
+      <button class="btn purple" id="btn-multi-start">▶ START MULTI</button>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div id="right-panel">
+    <div class="panel-header">◈ IMPACT ANALYSIS</div>
+
+    <div id="stats-grid">
+      <div class="stat-cell critical"><div class="stat-value" id="stat-critical">0</div><div class="stat-label">CRITICAL ZONES</div></div>
+      <div class="stat-cell severe"><div class="stat-value" id="stat-severe">0</div><div class="stat-label">SEVERE ZONES</div></div>
+      <div class="stat-cell moderate"><div class="stat-value" id="stat-moderate">0</div><div class="stat-label">MODERATE</div></div>
+      <div class="stat-cell safe"><div class="stat-value" id="stat-safe">64</div><div class="stat-label">SAFE ZONES</div></div>
+    </div>
+
+    <!-- Category breakdown -->
+    <div id="category-strip">
+      <div class="cat-cell"><div class="cat-val" style="color:#FF4444" id="cat-structural">0</div><div class="cat-lbl">STRUCTURAL</div></div>
+      <div class="cat-cell"><div class="cat-val" style="color:#FF8800" id="cat-flood">0</div><div class="cat-lbl">FLOOD</div></div>
+      <div class="cat-cell"><div class="cat-val" style="color:#FFCC00" id="cat-casualty">0</div><div class="cat-lbl">CASUALTY</div></div>
+      <div class="cat-cell"><div class="cat-val" style="color:#00CCFF" id="cat-debris">0</div><div class="cat-lbl">DEBRIS</div></div>
+    </div>
+
+    <div class="panel-header">◈ PRIORITY ZONES</div>
+    <div id="zones-panel">
+      <div class="no-data" id="no-zones">No active threats detected</div>
+    </div>
+
+    <div class="panel-header">◈ DETECTION LOG</div>
+    <div id="detection-log">
+      <div class="log-entry"><span class="log-time">--:--:--</span><span class="log-type">SYSTEM</span><span>Awaiting feed...</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE  = 'ws://localhost:8000';
+  const HTTP_BASE = 'http://localhost:8000';
+  let ws = null, streamId = crypto.randomUUID();
+  let frameCount = 0, fpsFrames = 0;
+  let multiMode = false;
+
+  // ── Clock & FPS ──
+  setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB'); }, 1000);
+  setInterval(() => { document.getElementById('fps-counter').textContent = fpsFrames + ' FPS'; fpsFrames = 0; }, 1000);
+
+  // ── File upload ──
+  document.getElementById('file-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const form = new FormData(); form.append('file', file);
+    const res  = await fetch(HTTP_BASE + '/upload', { method: 'POST', body: form });
+    const data = await res.json();
+    document.getElementById('rtsp-input').value = data.filename;
+    addLog('SYSTEM', `Uploaded: ${data.filename}`);
+  });
+
+  // ── Buttons ──
+  document.getElementById('btn-start').addEventListener('click', () => {
+    const source = document.getElementById('rtsp-input').value.trim();
+    if (!source) { addLog('ERROR', 'No source specified'); return; }
+    startStream(`${API_BASE}/ws/stream/${streamId}`, { source });
+    document.getElementById('source-label').textContent = source;
+  });
+
+  document.getElementById('btn-demo').addEventListener('click', () => {
+    startStream(`${API_BASE}/ws/demo/${streamId}`, null);
+    document.getElementById('source-label').textContent = 'DEMO MODE';
+  });
+
+  // Multi-source toggle
+  document.getElementById('btn-multi-toggle').addEventListener('click', () => {
+    const mc = document.getElementById('multi-controls');
+    mc.classList.toggle('visible');
+  });
+
+  // Multi-source start
+  document.getElementById('btn-multi-start').addEventListener('click', () => {
+    const s1 = document.getElementById('src1-input').value.trim();
+    const s2 = document.getElementById('src2-input').value.trim();
+    if (!s1 || !s2) { addLog('ERROR', 'Both sources required for multi-mode'); return; }
+    multiMode = true;
+    document.getElementById('multi-badge').style.display = 'inline';
+    startStream(`${API_BASE}/ws/multi/${streamId}`, { source1: s1, source2: s2 });
+    document.getElementById('source-label').textContent = `${s1} + ${s2}`;
+  });
+
+  document.getElementById('btn-stop').addEventListener('click', stopStream);
+
+  function startStream(url, config) {
+    stopStream(); streamId = crypto.randomUUID();
+    ws = new WebSocket(url);
+    ws.onopen = () => {
+      setConnected(true);
+      if (config) ws.send(JSON.stringify(config));
+      addLog('SYSTEM', 'Connection established');
+    };
+    ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
+    ws.onclose   = () => { setConnected(false); addLog('SYSTEM', 'Connection closed'); };
+    ws.onerror   = () => { setConnected(false); addLog('ERROR', 'WebSocket error — is backend running?'); };
+    document.getElementById('btn-stop').disabled  = false;
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-demo').disabled  = true;
+  }
+
+  function stopStream() {
+    if (ws) { ws.close(); ws = null; }
+    setConnected(false); multiMode = false;
+    document.getElementById('multi-badge').style.display = 'none';
+    document.getElementById('btn-stop').disabled  = true;
+    document.getElementById('btn-start').disabled = false;
+    document.getElementById('btn-demo').disabled  = false;
+  }
+
+  function setConnected(on) {
+    document.getElementById('conn-status').innerHTML =
+      `<span class="status-dot${on?'':' red'}" id="dot"></span> ${on?'LIVE':'OFFLINE'}`;
+  }
+
+  // ── Main message handler ──
+  function handleMessage(data) {
+    if (data.type === 'video_info') {
+      addLog('INFO', `Stream: ${data.data.width}x${data.data.height} @ ${Math.round(data.data.fps)}fps`);
+      return;
+    }
+    if (data.error) { addLog('ERROR', data.error); return; }
+    if (data.type !== 'frame') return;
+
+    fpsFrames++; frameCount++;
+    document.getElementById('frame-count').textContent = frameCount;
+
+    // Video frame
+    const img = document.getElementById('video-feed');
+    img.src = 'data:image/jpeg;base64,' + data.frame;
+    img.style.display = 'block';
+    document.getElementById('no-feed').style.display = 'none';
+
+    // Stats
+    if (data.stats) {
+      document.getElementById('stat-critical').textContent = data.stats.critical_zones;
+      document.getElementById('stat-severe').textContent   = data.stats.severe_zones;
+      document.getElementById('stat-moderate').textContent = data.stats.moderate_zones;
+      document.getElementById('stat-safe').textContent     = data.stats.safe_zones;
+    }
+
+    // Categories
+    if (data.detections) {
+      const cats = { structural:0, flood:0, casualty:0, debris:0, infrastructure:0 };
+      data.detections.forEach(d => { if (cats[d.category]!==undefined) cats[d.category]++; });
+      document.getElementById('cat-structural').textContent = cats.structural;
+      document.getElementById('cat-flood').textContent      = cats.flood;
+      document.getElementById('cat-casualty').textContent   = cats.casualty;
+      document.getElementById('cat-debris').textContent     = cats.debris + cats.infrastructure;
+    }
+
+    // Model type color cue
+    if (data.model_type) {
+      document.getElementById('source-label').style.color =
+        data.model_type === 'custom' ? 'var(--accent2)' : 'var(--accent)';
+    }
+
+    // UPGRADE 3 — SITREP
+    if (data.sitrep) {
+      document.getElementById('sitrep-text').textContent = data.sitrep;
+    }
+
+    // UPGRADE 4 — Timeline chart
+    if (data.timeline && data.timeline.length > 0) {
+      drawTimeline(data.timeline);
+    }
+
+    // Zones
+    updateZones(data.zones || []);
+
+    // Log
+    if (data.detections && data.detections.length > 0) {
+      for (const det of data.detections) {
+        if (Math.random() < 0.12) {
+          const conf = Math.round(det.confidence * 100);
+          const src  = det.source ? ` [SRC${det.source}]` : '';
+          addLog(det.type.toUpperCase() + src, `${conf}% conf`, det.category === 'casualty' ? 'critical' : 'severe');
+        }
+      }
+    }
+  }
+
+  // ── Timeline Chart ──
+  function drawTimeline(history) {
+    const canvas = document.getElementById('timeline-canvas');
+    const W = canvas.offsetWidth, H = canvas.offsetHeight;
+    if (W === 0 || H === 0) return;
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+
+    // Background grid lines
+    ctx.strokeStyle = 'rgba(15,58,82,0.6)'; ctx.lineWidth = 1;
+    [0.25, 0.5, 0.75].forEach(f => {
+      ctx.beginPath(); ctx.moveTo(0, H * f); ctx.lineTo(W, H * f); ctx.stroke();
+    });
+
+    if (history.length < 2) return;
+
+    const maxVal = 100;
+    const pts = history.map((p, i) => ({
+      x: (i / (history.length - 1)) * W,
+      yMax: H - (p.max / maxVal) * H,
+      yAvg: H - (p.avg / maxVal) * H,
+    }));
+
+    // Fill area under max line
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, H);
+    pts.forEach(p => ctx.lineTo(p.x, p.yMax));
+    ctx.lineTo(pts[pts.length-1].x, H);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, 'rgba(255,34,68,0.3)');
+    grad.addColorStop(1, 'rgba(255,34,68,0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Max line (red)
+    ctx.beginPath(); ctx.strokeStyle = '#FF2244'; ctx.lineWidth = 1.5;
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.yMax) : ctx.lineTo(p.x, p.yMax));
+    ctx.stroke();
+
+    // Avg line (cyan dashed)
+    ctx.beginPath(); ctx.strokeStyle = 'rgba(0,212,255,0.5)'; ctx.lineWidth = 1; ctx.setLineDash([3,4]);
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.yAvg) : ctx.lineTo(p.x, p.yAvg));
+    ctx.stroke(); ctx.setLineDash([]);
+
+    // Current value dot
+    const last = pts[pts.length - 1];
+    ctx.beginPath(); ctx.arc(last.x, last.yMax, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#FF2244'; ctx.fill();
+
+    // Labels
+    const lastData = history[history.length - 1];
+    ctx.font = '9px Share Tech Mono'; ctx.fillStyle = '#FF2244'; ctx.textAlign = 'right';
+    ctx.fillText(`MAX:${lastData.max.toFixed(0)}`, W - 2, 10);
+    ctx.fillStyle = 'rgba(0,212,255,0.7)';
+    ctx.fillText(`AVG:${lastData.avg.toFixed(1)}`, W - 2, 22);
+  }
+
+  // ── Zone cards ──
+  function updateZones(zones) {
+    const panel   = document.getElementById('zones-panel');
+    const noZones = document.getElementById('no-zones');
+    panel.querySelectorAll('.zone-card').forEach(e => e.remove());
+    if (!zones || zones.length === 0) { noZones.style.display = 'block'; return; }
+    noZones.style.display = 'none';
+    const colorMap = { CRITICAL:'var(--red)', SEVERE:'var(--orange)', MODERATE:'var(--yellow)', SAFE:'var(--green)' };
+    for (const zone of zones) {
+      const color = colorMap[zone.severity] || 'var(--text2)';
+      const card  = document.createElement('div');
+      card.className = 'zone-card';
+      card.innerHTML = `
+        <div class="zone-badge" style="color:${color};border-color:${color}">${zone.zone}</div>
+        <div class="zone-info">
+          <div class="zone-name" style="color:${color}">${zone.label}</div>
+          <div class="zone-action">${zone.action}</div>
+          <div class="score-bar"><div class="score-fill" style="width:${zone.score}%;background:${color}"></div></div>
+        </div>
+        <div class="zone-score" style="color:${color}">${zone.score}</div>`;
+      panel.appendChild(card);
+    }
+  }
+
+  // ── Log ──
+  function addLog(type, message, level = '') {
+    const log  = document.getElementById('detection-log');
+    const time = new Date().toLocaleTimeString('en-GB');
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${level}`;
+    entry.innerHTML = `<span class="log-time">${time}</span><span class="log-type">${type}</span><span>${message}</span>`;
+    log.insertBefore(entry, log.firstChild);
+    while (log.children.length > 50) log.removeChild(log.lastChild);
+  }
+
+  // Resize canvas on window resize
+  window.addEventListener('resize', () => {
+    const canvas = document.getElementById('timeline-canvas');
+    canvas.width = canvas.offsetWidth;
+  });
+</script>
+</body>
+</html>
