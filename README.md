@@ -35,8 +35,8 @@ disaster-intel/
 
 ## 🚀 Quick Start (Windows)
 
-### Step 1: Open in Cursor
-Open the `disaster-intel` folder in Cursor
+### Step 1: Open in Code Editor
+Open the `disaster-intel` folder in Code Editor
 
 ### Step 2: Setup (run once)
 ```
@@ -48,7 +48,7 @@ This creates a virtual environment and installs all dependencies.
 ```
 Double-click: start_backend.bat
 ```
-Or in Cursor terminal:
+Or in Code editor terminal:
 ```bash
 venv\Scripts\activate
 cd backend
@@ -139,4 +139,7 @@ Severity:
 ---
 
 ## 👥 Team
-CodeReCET 2026 — Armada Hackathon
+Amal Joe Manuel
+Abhishek G
+Alex Raju
+Pranav Prakash
